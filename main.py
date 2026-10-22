@@ -1,5 +1,6 @@
 from typing import Literal
 from cmd import Cmd
+from abc import ABC, abstractmethod
 
 DEBUG = True
 
@@ -23,7 +24,9 @@ class Game(Cmd):
     """
     # TODO: write better docstring
 
-    intro = "Welcome to my unnammed adventure game, work is still in progress"
+    intro = """Welcome to my unnammed adventure game, work is still in progress
+If this is your first time playing read the introduction sign by typing 'read sign'
+for help type `help`"""
     prompt = ">"
 
     def __init__(self, starting_room : Room, *args):
@@ -103,6 +106,10 @@ class Game(Cmd):
 
             #TODO: look at items and objects
 
+    def find_valid(self, substring: str, search: list[Object | Item]) -> list[Object | Item]:
+        # I am very proud of this. Its a very elegent solution.
+        return [i for i in search + self.items if substring in i.name.lower()]
+
     
 
     if DEBUG:
@@ -125,10 +132,8 @@ class Game(Cmd):
         """
         inp = arg.lower().strip()
 
-        # Keys are handeled specially
-        if "key" in inp: 
-            # This allows the player to attempt to use the wrong key, but it will auto use the right one
-            # TODO: fix this edge case
+        # Auto use the correct key
+        if inp == "key": 
 
             #Get all keys
             keys = [key for key in self.items if isinstance(key, Key)]
@@ -156,8 +161,8 @@ class Game(Cmd):
         
         # Get all items and objects that match the input
         
-        #TODO: turn valid checker into a function for eaiser readability and reusablity
-        valid: list[Item | Object] = [i for i in self.current_room.objects + self.items if inp in i.name.lower()] # I am very proud of this elegent solution
+        
+        valid = self.find_valid(inp, self.items + self.current_room.objects)
 
         if len(valid) == 0:
             print(f"I dont know what a '{arg}' is.")
@@ -180,7 +185,7 @@ class Game(Cmd):
             print("There are no Items here to grab.")
             return False
             
-        valid: list[Item] = [i for i in self.current_room.items if inp in i.name.lower()]
+        valid = self.find_valid(inp, self.current_room.items)
 
         if len(valid) == 0:
             print(f"I Can't find a '{arg}' here.")
@@ -204,9 +209,12 @@ class Game(Cmd):
     
     def do_EOF(self, arg):
         """
-        an alias of exit
+        an alias of exit for EOF support
         """
         return self.do_exit()
+    
+    def emptyline(self):
+        pass
 
 
 
@@ -294,13 +302,14 @@ class Room:
             raise ValueError(f"{room} does not exist!")
         return cls._rooms[room]
         
-class Item:
+class Item(ABC):
     """
     The Item class is for things that the player can pick up.
 
     This should not be directly used but subclassed into specific items.
 
     There is currently a limitation that the player can only have one of an Item at a time
+    (ok not really, but it would be multiple refrences to the same object)
     """
     type items = dict[str, Item]
     items = {}
@@ -309,6 +318,7 @@ class Item:
         self._register(self)
         pass
 
+    @abstractmethod
     def use(self, game: Game) -> None:
         """
         Whatever happens when you use this item,
@@ -336,7 +346,7 @@ class Item:
     
 
 
-class Object:
+class Object(ABC):
 
     objects: dict[str, Object] = {}
 
@@ -351,6 +361,7 @@ class Object:
         self.desc = desc
         self._register(self)
 
+    @abstractmethod
     def use(self, game: Game) -> None:
         """
         Whatever happens when you use this object,
@@ -375,6 +386,25 @@ class Object:
             return cls.objects[object_name]
         else:
             raise ValueError(f"Item, {object_name} does not exist!")
+
+class Readable(ABC):
+    """
+    This class does not implement anything, its just here for filtering and readability
+    This should be subclassed along with a instance of `Item` or `Object`
+    """
+
+    @abstractmethod
+    def read(self, game: Game) -> None:
+        """
+        Read the Readable.
+        needs to be impemended by subclass
+        """
+        return
+    def use(self, game: Game) -> None:
+        self.read(game)
+
+
+### --- Sub Classes --- ###
 
 class Door(Object):
     def __init__(self, name: str, desc: str, descriptor: str):
@@ -418,7 +448,6 @@ class Door(Object):
         self.locked = False
         print("[PLACEHOLDER] The door has unlocked!")
 
-        
 
 
 class Key(Item):
@@ -427,23 +456,61 @@ class Key(Item):
         super().__init__(name)
 
     def use(self, game: Game, door: Door | None = None) -> None:
-        # The Key use method is only called when the use code above finds a matching door.
+        # The Key use method is only called with a door when auto using the correct key,
         if door is not None:
             door.unlock()
+        # Otherwise we need to see if we have a valid door
         else:
-            TODO("specific key logic")
+            doors = [d for d in game.current_room.objects if isinstance(d, Door)]
+            for d in doors:
+                if self.descriptor == door.descriptor and door.locked:
+                    d.unlock()
+                    game.items.remove(self) 
+                    return
+            print("There is nowhere to use that key here")
+
+
+class Sign(Readable, Object):
+    def __init__(self, name: str, desc: str, text: str):
+        self.text = text
+        super().__init__(name, desc)
+
+    def read(self, game: Game):
+        print(self.text)
+        # TODO: show the text in a ASCII art sign
         
+
 
 
 ## --- Time to start creating all of the objects --- ##
 
-# Items
+# - Items - #
+
+#Keys
 Key("Red Key", "Red")
+
+# - Objects - #
+
+#Doors
 Door("Red Door", "A Red Door blockes your path inside", "Red")
+
+#Signs
+Sign("Introduction Sign", 
+     "A Oak sign that welcomes you to this world and helps guide you in your journey", 
+"""Welcome to my Text Adventure game!
+In this game there are no visuals, only text and commands
+To move around type `go [direction]`
+The valid directions are: North West East South (The first 
+Inital is also accepted)
+To use an item type `use [item]` 
+To look at an item type `look <item>`
+Without arguments It shows the room description and the
+valid movment directions
+Try it Now!""")
 
 
 # Rooms
-Room("Start", "The start of the game")
+Room("Start", "The start of the game", objects=[Object.get("Introduction Sign")])
 Room("Building", "a non descript building")
 Room("Lawn", "There is green grass all around you", items=[Item.get("Red Key")])
 Room("Front Porch", "you are not inside the building yet..")
@@ -455,6 +522,8 @@ Room("Front Porch", "you are not inside the building yet..")
 Room.connect("Start", "North", "Lawn", "South")
 Room.connect("Lawn", "West", "Front Porch", "East")
 
+
+# Doors
 Object.get("Red Door").connect("Front Porch", "West", "Building", "East") # Conditional unlock.
 
 
