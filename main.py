@@ -1,10 +1,11 @@
-from typing import Literal
+from typing import Literal, Sequence, TypeVar
 from cmd import Cmd
 from abc import ABC, abstractmethod
 
 DEBUG = True
 
 Direction = Literal["North", "East", "South", "West"] # I will probabbly add "Up" and "Down" later
+SearchItem = TypeVar("SearchItem", bound="Object | Item")
 
 
 def stub(*args): #when im done this should have no uses
@@ -19,7 +20,7 @@ class Game(Cmd):
         this is because we are subclassing `Cmd` to provide user input as a good system 
         so I dont have to write a help system and figure out how to write diffrent 
         commands that go to diffrent functions. But because the input loop is here, I found 
-        it easier to just store gamestate here in the same loop. (Yes I could have technicly 
+        it easier to just store gamestate here in the same loop. (Yes I could have technically 
         made a dataclass for gamestate but I realy dont want to do that)
     """
     # TODO: write better docstring
@@ -27,7 +28,7 @@ class Game(Cmd):
     intro = """Welcome to my unnammed adventure game, work is still in progress
 If this is your first time playing read the introduction sign by typing 'read sign'
 for help type `help`"""
-    prompt = ">"
+    prompt = "> "
 
     def __init__(self, starting_room : Room, *args):
         self.current_room =  starting_room
@@ -37,7 +38,7 @@ for help type `help`"""
     
     def do_go(self, arg: str):
         """
-        Go in a Cardnal direction
+        Go in a Cardinal direction
 
         Use: go [direction]
         """
@@ -106,9 +107,9 @@ for help type `help`"""
 
             #TODO: look at items and objects
 
-    def find_valid(self, substring: str, search: list[Object | Item]) -> list[Object | Item]:
+    def find_valid(self, substring: str, search: Sequence[SearchItem]) -> list[SearchItem]:
         # I am very proud of this. Its a very elegent solution.
-        return [i for i in search + self.items if substring in i.name.lower()]
+        return [item for item in search if substring in item.name.lower()]
 
     
 
@@ -185,16 +186,30 @@ for help type `help`"""
             print("There are no Items here to grab.")
             return False
             
-        valid = self.find_valid(inp, self.current_room.items)
+        valid: list[Item] = self.find_valid(inp, self.current_room.items)
 
         if len(valid) == 0:
             print(f"I Can't find a '{arg}' here.")
         elif len(valid) == 1:
             print(f"You Grabbed the {valid[0].name}!")
-            self.items.append(valid.pop())
+            self.items.append(valid[0])
+            self.current_room.items.remove(valid[0])
         else:
             print("Sorry, you will have to be more specific.")
         return False
+
+    def do_read(self, arg: str):
+        inp = arg.strip().lower()
+        valid = self.find_valid(inp, self.current_room.objects + self.items)
+
+        read = [x for x in valid if isinstance(x, Readable)]
+
+        if len(read) == 0:
+            print("Sorry, I cant read that")
+        elif len(read) == 1:
+            read[0].read(self)
+        else:
+            print("Sorry, you will have to be more specific.")
 
 
     def do_exit(self, arg=""):
@@ -214,7 +229,7 @@ for help type `help`"""
         return self.do_exit()
     
     def emptyline(self):
-        pass
+        return False
 
 
 
@@ -244,7 +259,7 @@ class Room:
         self.objects = objects.copy()
         self._register(self)
 
-        self.exits = {"North": None, 
+        self.exits: dict[Direction, Room | None] = {"North": None, 
                       "East": None, 
                       "South": None, 
                       "West": None}
@@ -265,7 +280,7 @@ class Room:
 
     def _connectRoom(self, connection: Room, direction: Direction) -> None:
         if self.exits[direction] is not None:
-            raise ValueError(f"Direction {direction} is claimed in {self.name} and cant connect to {connection.name}")
+            raise ValueError(f"Direction {direction} is claimed in {self.name} and can't connect to {connection.name}")
         else:
             self.exits[direction] = connection
 
@@ -279,10 +294,7 @@ class Room:
             exit1: a string/Direction. What exit from room1 will leed to room2?
             room2: a string, the name of the second room you want to connect.
             exit2: a string/Direction. What exit from room2 will leed to room1?
-        """
-
-        type _room1 = Room
-        type _room2 = Room
+        """     
 
         _room1 = cls.get(room1)
         _room2 = cls.get(room2)
@@ -309,10 +321,9 @@ class Item(ABC):
     This should not be directly used but subclassed into specific items.
 
     There is currently a limitation that the player can only have one of an Item at a time
-    (ok not really, but it would be multiple refrences to the same object)
+    (ok not really, but it would be multiple references to the same object)
     """
-    type items = dict[str, Item]
-    items = {}
+    items: dict[str, Item] = {}
     def __init__(self, name: str):
         self.name = name
         self._register(self)
@@ -322,7 +333,7 @@ class Item(ABC):
     def use(self, game: Game) -> None:
         """
         Whatever happens when you use this item,
-        This should be overridded by a subclass
+        This should be overridden by a subclass
         """
         pass
 
@@ -352,7 +363,7 @@ class Object(ABC):
 
     def __init__(self, name: str, desc: str):
         """
-        An object that exists that the player can interact with but not pickup and take, 
+        An object exists so that that the player can interact with but not pickup and take, 
         can also be seen by items like keys
 
         Like `Items` this should not be used by itself but subclassed into a more specific object
@@ -447,6 +458,13 @@ class Door(Object):
         Room.connect(self.room1.name, self.exit1, self.room2.name, self.exit2)
         self.locked = False
         print("[PLACEHOLDER] The door has unlocked!")
+    @classmethod
+    def get(cls, object_name: str) -> Door:
+        result = super().get(object_name)
+        if not isinstance(result, Door):
+            raise ValueError("Doors can only get Doors!")
+
+        return result
 
 
 
@@ -461,9 +479,9 @@ class Key(Item):
             door.unlock()
         # Otherwise we need to see if we have a valid door
         else:
-            doors = [d for d in game.current_room.objects if isinstance(d, Door)]
+            doors: list[Door] = [d for d in game.current_room.objects if isinstance(d, Door)]
             for d in doors:
-                if self.descriptor == door.descriptor and door.locked:
+                if self.descriptor == d.descriptor and d.locked:
                     d.unlock()
                     game.items.remove(self) 
                     return
@@ -505,7 +523,7 @@ Inital is also accepted)
 To use an item type `use [item]` 
 To look at an item type `look <item>`
 Without arguments It shows the room description and the
-valid movment directions
+valid movement directions
 Try it Now!""")
 
 
@@ -524,7 +542,7 @@ Room.connect("Lawn", "West", "Front Porch", "East")
 
 
 # Doors
-Object.get("Red Door").connect("Front Porch", "West", "Building", "East") # Conditional unlock.
+Door.get("Red Door").connect("Front Porch", "West", "Building", "East") # Conditional unlock.
 
 
 if __name__ == "__main__":
