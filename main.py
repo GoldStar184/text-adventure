@@ -1,33 +1,33 @@
-from typing import Literal, Sequence, TypeVar
+from typing import Literal, Optional, Sequence, TypeVar
 from cmd import Cmd
 from abc import ABC, abstractmethod
+from sys import hexversion
+
+if hexversion < 51315184:
+    print(f"You are Running an earlier version of python than was used to develop this game, bugs may be present")
 
 DEBUG = True
 
-Direction = Literal["North", "East", "South", "West"] # I will probabbly add "Up" and "Down" later
+Direction = Literal["North", "East", "South", "West"] # I will probably add "Up" and "Down" later
 SearchItem = TypeVar("SearchItem", bound="Object | Item")
 
-
-def stub(*args): #when im done this should have no uses
-    print(f"Stub: {args}")
-
-def TODO(s):
+def TODO(s): #when im done this should have no uses
     print(f"TODO: {s}") #same here
 
 class Game(Cmd):
     """
-    This is the Class that controlls gamestate and also user input at the same time
+    This is the Class that controls game state and also user input at the same time
         this is because we are subclassing `Cmd` to provide user input as a good system 
-        so I dont have to write a help system and figure out how to write diffrent 
-        commands that go to diffrent functions. But because the input loop is here, I found 
-        it easier to just store gamestate here in the same loop. (Yes I could have technically 
-        made a dataclass for gamestate but I realy dont want to do that)
+        so I dont have to write a help system and figure out how to write different 
+        commands that go to different functions. But because the input loop is here, I found 
+        it easier to just store game state here in the same loop. (Yes I could have technically 
+        made a dataclass for game state but I really dont want to do that)
     """
     # TODO: write better docstring
 
-    intro = """Welcome to my unnammed adventure game, work is still in progress
+    intro = """Welcome to my unnamed adventure game, work is still in progress
 If this is your first time playing read the introduction sign by typing 'read sign'
-for help type `help`"""
+For help type `help`"""# Why do indented multi line strings have to be written like this?
     prompt = "> "
 
     def __init__(self, starting_room : Room, *args):
@@ -35,6 +35,9 @@ for help type `help`"""
         super().__init__(*args)
 
         self.items: list[Item] = []
+    def find_valid(self, substring: str, search: Sequence[SearchItem]) -> list[SearchItem]:
+        # I am very proud of this. Its a very elegant solution.
+        return [item for item in search if substring in item.name.lower()]
     
     def do_go(self, arg: str):
         """
@@ -103,27 +106,17 @@ for help type `help`"""
 
             return False
         else:
-            TODO("Look at items and objects")
 
-            #TODO: look at items and objects
+            inp = arg.strip().lower()
+            valid = self.find_valid(inp, self.items + self.current_room.objects)
 
-    def find_valid(self, substring: str, search: Sequence[SearchItem]) -> list[SearchItem]:
-        # I am very proud of this. Its a very elegent solution.
-        return [item for item in search if substring in item.name.lower()]
-
-    
-
-    if DEBUG:
-        def do_shell(self, arg):
-            """
-            For debuging use, executes command as python code
-
-            Usage: ![Command]
-
-            Dev Note: this does not print expresions by default like an IDLE so a print statement is usualy needed
-            Dev Note 2: Dont even try to write fuctions or anything that needs multiple lines here.
-            """
-            exec(arg, globals())
+            if len(valid) == 0:
+                print(f"Sorry, I don't know what a '{arg}' is")
+            elif len(valid) > 1:
+                print("Sorry, you will have to be more specific.")
+            else:
+                print(f"{type(valid[0]).__name__}: {valid[0].name}")
+                print(valid[0].desc)
             return False
 
     def do_use(self, arg):
@@ -176,6 +169,8 @@ for help type `help`"""
     def do_grab(self, arg: str):
         """
         Grab a Item that is in the room
+
+        Usage: grab <item>
         """
         inp = arg.strip().lower()
 
@@ -199,7 +194,17 @@ for help type `help`"""
         return False
 
     def do_read(self, arg: str):
+        """
+        Read an Object or Item
+
+        Usage: read <Name>
+        """
         inp = arg.strip().lower()
+
+        if inp == "":
+            print("What do you want to read?")
+            return False
+        
         valid = self.find_valid(inp, self.current_room.objects + self.items)
 
         read = [x for x in valid if isinstance(x, Readable)]
@@ -221,13 +226,102 @@ for help type `help`"""
         Dev Note: A save system has not been implemented yet
         """
         return True
+
+    def do_unlock(self, args):
+        """
+        Attempts to unlock a door, requires you to have the correct key
+        Usage: unlock <door name>
+
+        Unless there are multiple doors in one room,
+        "Unlock door" should work. 
+        """
+        
+        inp = args.strip().lower()
+
+        valid = self.find_valid(inp, self.current_room.objects)
+
+        if len(valid) == 0:
+            print(f"Sorry, I don't know what you mean by '{args}'")
+            return False
+        
+        doors = [i for i in self.find_valid(inp, self.current_room.objects) if isinstance(i, Door)]
+
+        if len(doors) == 0:
+            print("Sorry I can't open that.")
+            return False
+
+        valid_keys = [i for i in self.items if isinstance(i, Key) and i.descriptor == doors[0].descriptor]
+
+        if len(valid_keys) == 0:
+            print(f"Sorry, You dont have the key to unlock the {doors[0].name}.")
+            return False
+        return self.do_use(valid_keys[0].name) # I want to have the unlock code in one(ish) place 
+
+    def do_drop(self, arg):
+        """
+        Drop an Item in a room
+
+        Usage: drop <Item>
+
+        Dev Note: I don't know why you would use this since the inventory is infinite, 
+            but I was advised to add this so...
+        """
+        inp = arg.strip().lower()
+        valid = self.find_valid(inp, self.items)
+        if len(valid) == 0:
+            print(f"You don't have a '{arg}'.")
+        elif len(valid) == 1:
+            print(f"You dropped the {valid[0].name}")
+            self.items.remove(valid[0])
+            self.current_room.items.append(valid[0])
+        else:
+            print("Sorry, you will have to be more specific.")
     
+    def do_inventory(self, arg):
+        """
+        Views your current inventory
+        """
+        if len(self.items) > 0:
+            print(f"Items: {", ".join([i.name for i in self.items])}")
+        else:
+            print("You have no Items!")
+
+    if DEBUG:
+        def do_shell(self, arg):
+            """
+            For debugging use, executes command as python code
+
+            Usage: !<Command>
+
+            Dev Note: this does not print expressions by default like an IDLE so a print statement is usually needed
+            Dev Note 2: Dont even try to write functions or anything that needs multiple lines here.
+            """
+            exec(arg, globals())
+            return False
+
+    ### --- Begin Alias --- ### 
     def do_EOF(self, arg):
         """
         an alias of exit for EOF support
         """
         return self.do_exit()
-    
+
+    def do_examine(self, arg):
+        """
+        Examines a room or Item
+        """
+        return self.do_look(arg)
+
+    def do_open(self, arg):
+        TODO("Sorry open has not been implemented yet!")
+
+    def do_i(self, arg):
+        """
+        An alias of inventory
+        see inventory help page for more information 
+        """
+        return self.do_inventory(arg)
+
     def emptyline(self):
         return False
 
@@ -236,11 +330,11 @@ for help type `help`"""
 class Room:
     """
     This class represents a room (duh)
-    It has refrences to other rooms based on direction.
+    It has references to other rooms based on direction.
 
-    The Room class has its own internal refrence function so it should not be needed
-        to to assign to a variable. instead use `Room.get([room name])` to get a refrence 
-        to a room, though the `Room.connect` method takes a room name and not the refrence 
+    The Room class has its own internal reference function so it should not be needed
+        to to assign to a variable. instead use `Room.get([room name])` to get a reference 
+        to a room, though the `Room.connect` method takes a room name and not the reference 
         to make writing all of the connections easier. (I will probably add support for directly
         giving a `Room` object later)
 
@@ -252,11 +346,11 @@ class Room:
 
 
 
-    def __init__(self, name, desc : str = "", items : list[Item] = [], objects : list[Object] = []):
+    def __init__(self, name, desc : str = "", items : Optional[list[Item]] = None, objects : Optional[list[Object]] = None):
         self.desc = desc
         self.name = name
-        self.items = items.copy()
-        self.objects = objects.copy()
+        self.items = items.copy() if items else []
+        self.objects = objects.copy() if objects else []
         self._register(self)
 
         self.exits: dict[Direction, Room | None] = {"North": None, 
@@ -291,9 +385,9 @@ class Room:
         Connect 2 rooms together
         Arguments:
             room1: a string, the name of the first room you want to connect.
-            exit1: a string/Direction. What exit from room1 will leed to room2?
+            exit1: a string/Direction. What exit from room1 will lead to room2?
             room2: a string, the name of the second room you want to connect.
-            exit2: a string/Direction. What exit from room2 will leed to room1?
+            exit2: a string/Direction. What exit from room2 will lead to room1?
         """     
 
         _room1 = cls.get(room1)
@@ -324,8 +418,9 @@ class Item(ABC):
     (ok not really, but it would be multiple references to the same object)
     """
     items: dict[str, Item] = {}
-    def __init__(self, name: str):
+    def __init__(self, name: str, desc: str):
         self.name = name
+        self.desc = desc
         self._register(self)
         pass
 
@@ -376,7 +471,7 @@ class Object(ABC):
     def use(self, game: Game) -> None:
         """
         Whatever happens when you use this object,
-        This should be overridded by a subclass
+        This should be overridden by a subclass
         """
         pass
     
@@ -396,7 +491,7 @@ class Object(ABC):
         if object_name in cls.objects.keys():
             return cls.objects[object_name]
         else:
-            raise ValueError(f"Item, {object_name} does not exist!")
+            raise ValueError(f"Object, {object_name} does not exist!")
 
 class Readable(ABC):
     """
@@ -408,7 +503,7 @@ class Readable(ABC):
     def read(self, game: Game) -> None:
         """
         Read the Readable.
-        needs to be impemended by subclass
+        needs to be implemented by subclass
         """
         return
     def use(self, game: Game) -> None:
@@ -422,7 +517,7 @@ class Door(Object):
         self.locked = True
         self.descriptor = descriptor
         super().__init__(name, desc) 
-        # IDEA: we might want to allow desc to be a function to dynamacly change the discription
+        # IDEA: we might want to allow desc to be a function to dynamically change the description
 
     def use(self, game: Game) -> None:
         """
@@ -452,10 +547,17 @@ class Door(Object):
 
     def unlock(self) -> None:
         """
-        unlocks the door. normaly called by a key
+        unlocks the door. normally called by a key
         """
-        # This is so inefficient, ill prob fix this later to accept room objects
-        Room.connect(self.room1.name, self.exit1, self.room2.name, self.exit2)
+        if not self.locked:
+            print("Something Went Wrong, the Door is Already Unlocked!")
+            print("If you are seeing this please open an issue in the github!")
+        try:
+            # This is so inefficient, ill prob fix this later to accept room objects
+            Room.connect(self.room1.name, self.exit1, self.room2.name, self.exit2)
+        except AttributeError as e:
+            print(e)
+            print("Failed to initialize door connection and unlock door, in the future use door.connect to add to code!")
         self.locked = False
         print("[PLACEHOLDER] The door has unlocked!")
     @classmethod
@@ -469,9 +571,9 @@ class Door(Object):
 
 
 class Key(Item):
-    def __init__(self, name: str, descriptor: str):
+    def __init__(self, name: str, desc:str, descriptor: str):
         self.descriptor = descriptor
-        super().__init__(name)
+        super().__init__(name, desc)
 
     def use(self, game: Game, door: Door | None = None) -> None:
         # The Key use method is only called with a door when auto using the correct key,
@@ -496,8 +598,15 @@ class Sign(Readable, Object):
     def read(self, game: Game):
         print(self.text)
         # TODO: show the text in a ASCII art sign
-        
 
+class Broken_Door(Door):
+    def __init__(self, name, disc):
+
+        super().__init__(name, disc, "BROKEN")
+    def unlock(self) -> None:
+        print("The lock on the door is broken!")
+    def use(self, game: Game) -> None:
+        print("The Door is Broken and you can't open it!")
 
 
 ## --- Time to start creating all of the objects --- ##
@@ -505,12 +614,15 @@ class Sign(Readable, Object):
 # - Items - #
 
 #Keys
-Key("Red Key", "Red")
+Key("House Key", "The Key to your House.", "House")
+Key("Garden Key", "The Key to your Garden", "Garden")
 
 # - Objects - #
 
 #Doors
-Door("Red Door", "A Red Door blockes your path inside", "Red")
+Door("Garden Gate", "The Gate To the Garden is Locked", "Garden")
+Door("House Door", "The Door to your House", "House")
+Broken_Door("Backdoor", "The backdoor to your house, its sadly broken")
 
 #Signs
 Sign("Introduction Sign", 
@@ -519,7 +631,7 @@ Sign("Introduction Sign",
 In this game there are no visuals, only text and commands
 To move around type `go [direction]`
 The valid directions are: North West East South (The first 
-Inital is also accepted)
+Initial is also accepted)
 To use an item type `use [item]` 
 To look at an item type `look <item>`
 Without arguments It shows the room description and the
@@ -529,22 +641,52 @@ Try it Now!""")
 
 # Rooms
 Room("Start", "The start of the game", objects=[Object.get("Introduction Sign")])
-Room("Building", "a non descript building")
-Room("Lawn", "There is green grass all around you", items=[Item.get("Red Key")])
+Room("Lawn", "There is green grass all around you")
 Room("Front Porch", "you are not inside the building yet..")
-
+Room("Side of House", "The side of your house")
+Room("Garden", "Your garden, There are a bunch of plants growing here", items=[Item.get("House Key")])
+Room("Back of House", "The back of your house", objects=[Object.get("Backdoor")])
+Room("House Entrance", "The first room in your house")
 
 ## --- Connecting objects to eachother --- ##
 
 # Rooms
 Room.connect("Start", "North", "Lawn", "South")
 Room.connect("Lawn", "West", "Front Porch", "East")
+Room.connect("Front Porch", "South", "Side of House", "East")
+Room.connect("Side of House", "West", "Back of House", "East")
+
 
 
 # Doors
-Door.get("Red Door").connect("Front Porch", "West", "Building", "East") # Conditional unlock.
+Door.get("House Door").connect("Front Porch", "West", "House Entrance", "East")
+Door.get("Garden Gate").connect("Front Porch", "North", "Garden", "South") #Change to garden gate
 
 
 if __name__ == "__main__":
     game = Game(Room.get("Start"))
     game.cmdloop()
+
+"""
+Game Plans:
+
+Idea: You need to complete your HW and get to bed
+
+
+Week 1 (Outside)
+The Player Starts outside and needs to find a key to get inside
+
+House Key is in the garden but the garden key is in the backyard
+
+Need to add:
+- Objects with item inventory
+- Drop command
+- Better README
+- Sign with sign clipart
+- Door Unlock method supporting Door Instances as arguments
+- Clothing Slots and Items
+- Combat?
+    - Would need to come up with a system
+    - 
+
+"""
