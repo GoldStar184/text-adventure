@@ -3,7 +3,7 @@ from cmd import Cmd
 from abc import ABC, abstractmethod
 from sys import hexversion
 
-if hexversion < 51315184:
+if hexversion < 51315184: #Developed in python 3.15.1
     print(f"You are Running an earlier version of python than was used to develop this game, bugs may be present")
 
 DEBUG = True
@@ -313,7 +313,11 @@ For help type `help`"""# Why do indented multi line strings have to be written l
         return self.do_look(arg)
 
     def do_open(self, arg):
+        """ 
+        Sorry the open command has not been implemented, "unlock" is probably what your looking for 
+        """
         TODO("Sorry open has not been implemented yet!")
+        # Needs to open both Door and objects that hold items 
 
     def do_i(self, arg):
         """
@@ -346,7 +350,7 @@ class Room:
 
 
 
-    def __init__(self, name, desc : str = "", items : Optional[list[Item]] = None, objects : Optional[list[Object]] = None):
+    def __init__(self, name: str, desc : str = "", items : Optional[list[Item]] = None, objects : Optional[list[Object]] = None):
         self.desc = desc
         self.name = name
         self.items = items.copy() if items else []
@@ -600,7 +604,7 @@ class Sign(Readable, Object):
         # TODO: show the text in a ASCII art sign
 
 class Broken_Door(Door):
-    def __init__(self, name, disc):
+    def __init__(self, name: str, disc: str):
 
         super().__init__(name, disc, "BROKEN")
     def unlock(self) -> None:
@@ -638,6 +642,15 @@ Without arguments It shows the room description and the
 valid movement directions
 Try it Now!""")
 
+Sign("Dev Sign 1", "A sign with a Dev Note", 
+"""In the future the key here will be better hidden, 
+but im putting it here to get a minimum viable product 
+(It will probably be on a shelf or something like that)""")
+
+Sign("Dev Sign 2", "Thats All Folks!", 
+"""Sorry But thats all there is so far, 
+I know its not much but its what I have!""")
+
 
 # Rooms
 Room("Start", "The start of the game", objects=[Object.get("Introduction Sign")])
@@ -645,8 +658,8 @@ Room("Lawn", "There is green grass all around you")
 Room("Front Porch", "you are not inside the building yet..")
 Room("Side of House", "The side of your house")
 Room("Garden", "Your garden, There are a bunch of plants growing here", items=[Item.get("House Key")])
-Room("Back of House", "The back of your house", objects=[Object.get("Backdoor")])
-Room("House Entrance", "The first room in your house")
+Room("Back of House", "The back of your house", objects=[Object.get("Backdoor"), Object.get("Dev Sign 1")], items=[Item.get("Garden Key")])
+Room("House Entrance", "The first room in your house", objects=[Object.get("Dev Sign 2")])
 
 ## --- Connecting objects to eachother --- ##
 
@@ -660,7 +673,7 @@ Room.connect("Side of House", "West", "Back of House", "East")
 
 # Doors
 Door.get("House Door").connect("Front Porch", "West", "House Entrance", "East")
-Door.get("Garden Gate").connect("Front Porch", "North", "Garden", "South") #Change to garden gate
+Door.get("Garden Gate").connect("Front Porch", "North", "Garden", "South")
 
 
 if __name__ == "__main__":
@@ -672,21 +685,17 @@ Game Plans:
 
 Idea: You need to complete your HW and get to bed
 
-
 Week 1 (Outside)
 The Player Starts outside and needs to find a key to get inside
 
-House Key is in the garden but the garden key is in the backyard
+House Key is in the garden but the garden key is in the backyard(?)
 
 Need to add:
 - Objects with item inventory
-- Drop command
-- Better README
+- Better README (kinda?)
 - Sign with sign clipart
 - Door Unlock method supporting Door Instances as arguments
 - Clothing Slots and Items
 - Combat?
     - Would need to come up with a system
-    - 
-
 """
