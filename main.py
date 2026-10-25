@@ -50,17 +50,16 @@ For help type `help`"""# Why do indented multi line strings have to be written l
 
         low_arg = arg.lower()
 
-        if low_arg == "n" or low_arg == "north":
-            direction = "North"
-        elif low_arg == "e" or low_arg == "east":
-            direction = "East"
-        elif low_arg == "s" or low_arg == "south":
-            direction = "South"
-        elif low_arg == "w" or low_arg == "west":
-            direction = "West"
-        else:
+        direction_map: dict[str, Direction] = { "n": "North", "north": "North",
+                                                "e": "East", "east": "East", 
+                                                "s": "South", "south": "South",
+                                                "w": "West", "west": "West"}
+
+        if low_arg not in direction_map.keys():
             print(f"Not a valid direction, got '{arg}'")
-            return
+            return False
+        else:
+            direction = direction_map[low_arg]
 
         travel = room.exits[direction]
         
@@ -316,7 +315,19 @@ For help type `help`"""# Why do indented multi line strings have to be written l
         """ 
         Sorry the open command has not been implemented, "unlock" is probably what your looking for 
         """
-        TODO("Sorry open has not been implemented yet!")
+        valid = self.find_valid(arg, self.current_room.objects)
+
+        if len(valid) == 0:
+            print("Sorry, I dont know what a '{arg}' is")
+        elif len(valid) > 1:
+            print("Sorry, you will have to be more specific.")
+        elif isinstance(valid[0], Door):
+            self.do_unlock(valid[0].name)
+        
+        
+        
+
+        TODO("Sorry, open has not been implemented yet!")
         # Needs to open both Door and objects that hold items 
 
     def do_i(self, arg):
@@ -513,7 +524,14 @@ class Readable(ABC):
     def use(self, game: Game) -> None:
         self.read(game)
 
-
+class Container(ABC):
+    """
+    A Mixin For objects that can hold items. Not a child of `Object` because there might be a weird
+        case where we want to have an Item that can hold other Items for some reason
+    """ 
+    def __init__(self, *args):
+        self.inventory: list[Item] = [].copy() 
+        super().__init__(*args)
 ### --- Sub Classes --- ###
 
 class Door(Object):
