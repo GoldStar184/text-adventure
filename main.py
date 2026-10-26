@@ -30,6 +30,8 @@ If this is your first time playing read the introduction sign by typing 'read si
 For help type `help`"""# Why do indented multi line strings have to be written like this?
     prompt = "> "
 
+    specific = "Sorry, you will have to be more specific."
+
     def __init__(self, starting_room : Room, *args):
         self.current_room =  starting_room
         super().__init__(*args)
@@ -112,7 +114,7 @@ For help type `help`"""# Why do indented multi line strings have to be written l
             if len(valid) == 0:
                 print(f"Sorry, I don't know what a '{arg}' is")
             elif len(valid) > 1:
-                print("Sorry, you will have to be more specific.")
+                print(self.specific)
             else:
                 print(f"{type(valid[0]).__name__}: {valid[0].name}")
                 print(valid[0].desc)
@@ -162,7 +164,7 @@ For help type `help`"""# Why do indented multi line strings have to be written l
         elif len(valid) == 1:
             valid[0].use(self)
         else:
-            print("Sorry, you will have to be more specific.")
+            print(self.specific)
         return False
 
     def do_grab(self, arg: str):
@@ -189,7 +191,7 @@ For help type `help`"""# Why do indented multi line strings have to be written l
             self.items.append(valid[0])
             self.current_room.items.remove(valid[0])
         else:
-            print("Sorry, you will have to be more specific.")
+            print(self.specific)
         return False
 
     def do_read(self, arg: str):
@@ -213,7 +215,7 @@ For help type `help`"""# Why do indented multi line strings have to be written l
         elif len(read) == 1:
             read[0].read(self)
         else:
-            print("Sorry, you will have to be more specific.")
+            print(self.specific)
 
 
     def do_exit(self, arg=""):
@@ -274,7 +276,7 @@ For help type `help`"""# Why do indented multi line strings have to be written l
             self.items.remove(valid[0])
             self.current_room.items.append(valid[0])
         else:
-            print("Sorry, you will have to be more specific.")
+            print(self.specific)
     
     def do_inventory(self, arg):
         """
@@ -320,14 +322,13 @@ For help type `help`"""# Why do indented multi line strings have to be written l
         if len(valid) == 0:
             print("Sorry, I dont know what a '{arg}' is")
         elif len(valid) > 1:
-            print("Sorry, you will have to be more specific.")
+            print(self.specific)
         elif isinstance(valid[0], Door):
             self.do_unlock(valid[0].name)
+        elif isinstance(valid[0], Container):
+            TODO("Sorry I havent implememted opening containers yet!")
+        return False
         
-        
-        
-
-        TODO("Sorry, open has not been implemented yet!")
         # Needs to open both Door and objects that hold items 
 
     def do_i(self, arg):
@@ -524,14 +525,8 @@ class Readable(ABC):
     def use(self, game: Game) -> None:
         self.read(game)
 
-class Container(ABC):
-    """
-    A Mixin For objects that can hold items. Not a child of `Object` because there might be a weird
-        case where we want to have an Item that can hold other Items for some reason
-    """ 
-    def __init__(self, *args):
-        self.inventory: list[Item] = [].copy() 
-        super().__init__(*args)
+
+
 ### --- Sub Classes --- ###
 
 class Door(Object):
@@ -630,6 +625,23 @@ class Broken_Door(Door):
     def use(self, game: Game) -> None:
         print("The Door is Broken and you can't open it!")
 
+class Container(Object):
+    """
+    A Mixin For objects that can hold items.
+    """
+    def __init__(self, name: str, disc: str, items: list[Item]):
+            self.items = items.copy()
+            super().__init__(name, disc)
+
+class Shelf(Container):
+    """
+    Its a shelf... I dont know what you want me to say...
+    """
+    def __init__(self, name, disc, items):
+        super().__init__(name, disc, items)
+
+
+
 
 ## --- Time to start creating all of the objects --- ##
 
@@ -669,8 +681,11 @@ Sign("Dev Sign 2", "Thats All Folks!",
 """Sorry But thats all there is so far, 
 I know its not much but its what I have!""")
 
+#Contaners
 
-# Rooms
+
+### ---  Rooms --- ###
+
 Room("Start", "The start of the game", objects=[Object.get("Introduction Sign")])
 Room("Lawn", "There is green grass all around you")
 Room("Front Porch", "you are not inside the building yet..")
