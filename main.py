@@ -151,6 +151,8 @@ For help type `help`"""# Why do indented multi line strings have to be written l
                         return False
             print("Sorry, you don't have the correct key")
             return False
+
+        
         # End key logic
         
         
@@ -315,7 +317,8 @@ For help type `help`"""# Why do indented multi line strings have to be written l
 
     def do_open(self, arg):
         """ 
-        Sorry the open command has not been implemented, "unlock" is probably what your looking for 
+        Open a Door or Container
+        Usage: open [door or container name]
         """
         valid = self.find_valid(arg, self.current_room.objects)
 
@@ -326,19 +329,43 @@ For help type `help`"""# Why do indented multi line strings have to be written l
         elif isinstance(valid[0], Door):
             self.do_unlock(valid[0].name)
         elif isinstance(valid[0], Container):
-            TODO("Sorry I havent implememted opening containers yet!")
+            # I think that we just take the items from the container and put them in the room items
+            pass
         return False
         
         # Needs to open both Door and objects that hold items 
 
+    ### --- Single Letter Alias --- ###
     def do_i(self, arg):
         """
         An alias of inventory
         see inventory help page for more information 
         """
         return self.do_inventory(arg)
+    
+    def do_n(self, arg)
+        "An alias of 'go north'"
+        return self.do_go("North")
+
+    def do_e(self, arg):
+        "An alias of 'go east'"
+        return self.do_go("East")
+
+    def do_s(self, arg):
+        "An alias of 'go south"
+        return self.do_go("South")
+
+    def do_w(self, arg):
+        "An alias of 'go west'"
+        return self.do_go("West")
+
+    
+    
 
     def emptyline(self):
+        """
+        Exists so pressing enter does not repeat last entered command
+        """
         return False
 
 
@@ -363,6 +390,14 @@ class Room:
 
 
     def __init__(self, name: str, desc : str = "", items : Optional[list[Item]] = None, objects : Optional[list[Object]] = None):
+        """
+        Initalizes a room instance, does not need to be assigned to a variable
+
+        name: The name of the room
+        desc: The Rooms Description
+        items: (Optional) A list of items in the room
+        objects: (Optional) A list of objects in the room
+        """
         self.desc = desc
         self.name = name
         self.items = items.copy() if items else []
@@ -637,7 +672,7 @@ class Shelf(Container):
     """
     Its a shelf... I dont know what you want me to say...
     """
-    def __init__(self, name, disc, items):
+    def __init__(self, name: str, disc: str, items: list[Item]):
         super().__init__(name, disc, items)
 
 
@@ -684,6 +719,9 @@ I know its not much but its what I have!""")
 #Contaners
 
 
+# Need to come up with a good name
+Shelf("Misc Shelf", "You bought an extra shelf and it has been the home for a lot of random things", [Item.get("Garden Key")])
+
 ### ---  Rooms --- ###
 
 Room("Start", "The start of the game", objects=[Object.get("Introduction Sign")])
@@ -691,7 +729,7 @@ Room("Lawn", "There is green grass all around you")
 Room("Front Porch", "you are not inside the building yet..")
 Room("Side of House", "The side of your house")
 Room("Garden", "Your garden, There are a bunch of plants growing here", items=[Item.get("House Key")])
-Room("Back of House", "The back of your house", objects=[Object.get("Backdoor"), Object.get("Dev Sign 1")], items=[Item.get("Garden Key")])
+Room("Back of House", "The back of your house", objects=[Object.get("Backdoor"), Object.get("Misc Shelf")])
 Room("House Entrance", "The first room in your house", objects=[Object.get("Dev Sign 2")])
 
 ## --- Connecting objects to eachother --- ##
