@@ -242,6 +242,9 @@ For help type `help`"""# Why do indented multi line strings have to be written l
         """
         
         inp = args.strip().lower()
+        if inp == "":
+            print("Sorry, an argument is needed, Try 'unlock door'")
+            return False
 
         valid = self.find_valid(inp, self.current_room.objects)
 
@@ -322,13 +325,16 @@ For help type `help`"""# Why do indented multi line strings have to be written l
         Open a Door or Container
         Usage: open [door or container name]
         """
-        valid = self.find_valid(arg, self.current_room.objects)
+        valid = self.find_valid(arg.strip().lower(), self.current_room.objects)
 
         if len(valid) == 0:
-            print("Sorry, I dont know what a '{arg}' is")
+            print(f"Sorry, I dont know what a '{arg}' is")
         elif len(valid) > 1:
             print(self.specific)
         elif isinstance(valid[0], Door):
+            if isinstance(valid[0], Broken_Door):
+                print("The door is broken!")
+                return False
             self.do_unlock(valid[0].name)
         elif isinstance(valid[0], Container):
             self.current_room.items += valid[0].items
@@ -609,11 +615,12 @@ class Door(Object):
         unlocks the door. normally called by a key
         """
         if not self.locked:
-            print("Something Went Wrong, the Door is Already Unlocked!")
-            print("If you are seeing this please open an issue in the github!")
+            print("The door is already unlocked!")
+            return
         try:
             # This is so inefficient, ill prob fix this later to accept room objects
             Room.connect(self.room1.name, self.exit1, self.room2.name, self.exit2)
+            # Guess what, I didnt fix this
         except AttributeError as e:
             print(e)
             print("Failed to initialize door connection and unlock door, in the future use door.connect to add to code!")
@@ -772,8 +779,55 @@ class Bed(Object):
         # Before sleeping we should check to make sure HW is done
         if not game.flags["homework"]:
             print("you should get your homework done before you go to bed!")
+            return
+        else:
+            print("You go to bed having done your Homework and gotten inside")
+            print("This is the end of the story, Thanks for playing!")
+            print("Type `exit` to exit or you can keep exploring!")
+
+## -- Filler Objects -- ##
+
+class Couch(Object):
+    def use(self, game):
+        print("You sit on the couch for a bit...")
+
+class TV(Object):
+    def __init__(self, name, desc):
+        self.on = False
+        super().__init__(name, desc)
+    def use(self, game):
+        if self.on:
+            print("You turn of the TV")
+        else:
+            print("you turn on the TV")
+        self.on = not self.on
+
+class Toothbrush(Item):
+    def use(self, game):
+        if game.current_room is Room.get("Bathroom"):
+            print("You brush your teeth")
+        else:
+            print("You should be in the Bathroom to brush your teeth!")
         return super().use(game)
 
+class Sink(Object):
+    """
+    its a sink for skink thinks (I ran out of things to add ok?)
+    """
+    def use(self, game):
+        print("You wash your hands in the sink")
+
+class Toilet(Object):
+    """
+    at this point im just adding random things
+    its filler ok?
+    """
+    def use(self, game):
+        print("You use the Toilet (and flush)")
+
+class Oven(Object):
+    def use(self, game):
+        print("Its a oven, you dont want to turn it on if you have nothing to cook")
 
 ## --- Time to start creating all of the objects --- ##
 
@@ -787,6 +841,7 @@ Key("Garden Key", "The Key to your Garden", "Garden")
 Homework("Homework", "Math Homework, You Really Should Get this done")
 
 # - Objects - #
+
 
 #Doors
 Door("Garden Gate", "The Gate To the Garden is Locked", "Garden")
@@ -810,6 +865,10 @@ Try it Now!""")
 #Desk
 Desk("Your Desk", "Its your desk", items=[Item.get("Homework")])
 
+#Filler
+TV("TV", "Your TV")
+Couch("Couch", "Your Couch")
+Bed("Bed", "Your Bed")
 #Contaners
 
 
@@ -825,11 +884,11 @@ Room("Side of House", "The side of your house")
 Room("Garden", "Your garden, There are a bunch of plants growing here", items=[Item.get("House Key")])
 Room("Back of House", "The back of your house", objects=[Object.get("Backdoor"), Object.get("Misc Shelf")])
 Room("House Entrance", "The first room in your house")
-Room("Living Room", "A comfortable living room with a couch and a large window")
+Room("Living Room", "A comfortable living room with a couch and a large window", objects=[Object.get("TV"), Object.get("Couch")])
 Room("Kitchen", "The kitchen is tidy, with counters along the walls and a small table")
 Room("Hallway", "A narrow hallway leads deeper into the house")
 Room("Bathroom", "A small bathroom with a mirror above the sink")
-Room("Bedroom", "Your bedroom, with a bed and a desk covered in homework", objects=[Object.get("Your Desk")])
+Room("Bedroom", "Your bedroom, with a bed and a desk covered in homework", objects=[Object.get("Your Desk"), Object.get("Bed")])
 ## --- Connecting objects to eachother --- ##
 
 # Outside Rooms
