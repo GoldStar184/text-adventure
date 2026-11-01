@@ -2,6 +2,7 @@ from typing import Literal, Optional, Sequence, TypeVar
 from cmd import Cmd
 from abc import ABC, abstractmethod
 from sys import hexversion
+from random import randint, choice
 
 if hexversion < 51315184: #Developed in python 3.15.1
     print(f"You are Running an earlier version of python than was used to develop this game, bugs may be present")
@@ -12,7 +13,7 @@ Direction = Literal["North", "East", "South", "West"] # I will probably add "Up"
 SearchItem = TypeVar("SearchItem", bound="Object | Item")
 
 def TODO(s): #when im done this should have no uses
-    print(f"TODO: {s}") #same here
+    print(f"TODO: {s}")
 
 class Game(Cmd):
     """
@@ -34,6 +35,7 @@ For help type `help`"""# Why do indented multi line strings have to be written l
 
     def __init__(self, starting_room : Room, *args):
         self.current_room =  starting_room
+        self.flags: dict[str, bool] = {"homework": False} # Need to check if HW is done, but will write to be extendable
         super().__init__(*args)
 
         self.items: list[Item] = []
@@ -151,6 +153,8 @@ For help type `help`"""# Why do indented multi line strings have to be written l
                         return False
             print("Sorry, you don't have the correct key")
             return False
+
+        
         # End key logic
         
         
@@ -315,7 +319,8 @@ For help type `help`"""# Why do indented multi line strings have to be written l
 
     def do_open(self, arg):
         """ 
-        Sorry the open command has not been implemented, "unlock" is probably what your looking for 
+        Open a Door or Container
+        Usage: open [door or container name]
         """
         valid = self.find_valid(arg, self.current_room.objects)
 
@@ -326,19 +331,48 @@ For help type `help`"""# Why do indented multi line strings have to be written l
         elif isinstance(valid[0], Door):
             self.do_unlock(valid[0].name)
         elif isinstance(valid[0], Container):
-            TODO("Sorry I havent implememted opening containers yet!")
+            self.current_room.items += valid[0].items
+            for item in valid[0].items:
+                print(f"You found a {item.name}")
+
+            valid[0].items = []
+            
+            pass
         return False
         
         # Needs to open both Door and objects that hold items 
 
+    ### --- Single Letter Alias --- ###
     def do_i(self, arg):
         """
         An alias of inventory
         see inventory help page for more information 
         """
         return self.do_inventory(arg)
+    
+    def do_n(self, arg):
+        "An alias of 'go north'"
+        return self.do_go("North")
+
+    def do_e(self, arg):
+        "An alias of 'go east'"
+        return self.do_go("East")
+
+    def do_s(self, arg):
+        "An alias of 'go south"
+        return self.do_go("South")
+
+    def do_w(self, arg):
+        "An alias of 'go west'"
+        return self.do_go("West")
+
+    
+    
 
     def emptyline(self):
+        """
+        Exists so pressing enter does not repeat last entered command
+        """
         return False
 
 
@@ -363,6 +397,14 @@ class Room:
 
 
     def __init__(self, name: str, desc : str = "", items : Optional[list[Item]] = None, objects : Optional[list[Object]] = None):
+        """
+        Initalizes a room instance, does not need to be assigned to a variable
+
+        name: The name of the room
+        desc: The Rooms Description
+        items: (Optional) A list of items in the room
+        objects: (Optional) A list of objects in the room
+        """
         self.desc = desc
         self.name = name
         self.items = items.copy() if items else []
@@ -632,15 +674,105 @@ class Container(Object):
     def __init__(self, name: str, disc: str, items: list[Item]):
             self.items = items.copy()
             super().__init__(name, disc)
+    def use(self, game):
+        print("Sorry you cant use this!")
 
 class Shelf(Container):
     """
     Its a shelf... I dont know what you want me to say...
     """
+    def __init__(self, name: str, disc: str, items: list[Item]):
+        super().__init__(name, disc, items)
+
+class Desk(Container):
     def __init__(self, name, disc, items):
         super().__init__(name, disc, items)
 
+    def read(self, game):
+        return super().read(game)
 
+class Homework(Item):
+    def random_problem(self) -> tuple[int, int, str, int]:
+        number_1 = randint(30, 80)
+        number_2 = randint(1, number_1)
+        result = None
+        operator = choice(["+", "-", "*"])
+        match operator:
+            case "+":
+                result = number_1 + number_2
+            case "-":
+                result = number_1 - number_2
+            case "*":
+                result = number_1 * number_2
+            case _:
+                raise RuntimeError(f"This should never happen, got {operator}")
+        return number_1, number_2, operator, result
+
+    def format_problem(self) -> tuple[str, int]:
+        p = choice(["Solve_1", "Solve_2", "Result", "Result", "Result"]) # we want it to land on "Result" more than "Solve"
+        n_1, n_2, operator, result = self.random_problem()
+        problem: str = None
+        ans: int = None 
+        match p:
+            case "Result":
+                problem = f"{n_1} {operator} {n_2} = x"
+                ans = result
+            case "Solve_1":
+                problem = f"x {operator} {n_2} = {result}"
+                ans = n_1
+            case "Solve_2":
+                problem = f"{n_1} {operator} x = {result}"
+                ans = n_2
+        return problem, ans
+    def use(self, game):
+        # I know there are better ways to do this that are more "oop" like assigning the finish state to the HW instance,
+        # But I think this works fine
+        if game.flags["homework"]:
+            print("You have already done your homework!")
+            return
+        problems = [self.format_problem() for i in range(6)]
+        prompt = "HW> "
+        print("You are beggining the homework minigame!")
+        print("Please solve for x")
+        exit = False
+        for problem, answer in problems:
+            loop = True
+            print(problem)
+            while loop and not exit:
+                inp = input(prompt).strip().lower()
+                if inp == "exit":
+                    exit = True
+                    break
+                try:
+                    answer_input = int(inp)
+                except ValueError:
+                    print("Sorry I cant turn that into a int")
+                    continue
+                if answer_input == answer:
+                    print("Correct!")
+                    # I know that the break should _theorecticly_ end the loop, but ive had bugs with the the break statement before
+                    loop = False
+                    break
+                else:
+                    print("Sorry Try again")
+
+            if exit:
+                break
+        if not exit: # If the player actualy finished their HW
+            game.flags["homework"] = True
+    
+        return
+
+class Bed(Object):
+    def __init__(self, name, desc):
+        super().__init__(name, desc)
+
+
+    def use(self, game):
+        # Before sleeping we should check to make sure HW is done
+        if not game.flags["homework"]:
+            print("you should get your homework done before you go to bed!")
+        return super().use(game)
 
 
 ## --- Time to start creating all of the objects --- ##
@@ -650,6 +782,9 @@ class Shelf(Container):
 #Keys
 Key("House Key", "The Key to your House.", "House")
 Key("Garden Key", "The Key to your Garden", "Garden")
+
+#Homework
+Homework("Homework", "Math Homework, You Really Should Get this done")
 
 # - Objects - #
 
@@ -672,17 +807,14 @@ Without arguments It shows the room description and the
 valid movement directions
 Try it Now!""")
 
-Sign("Dev Sign 1", "A sign with a Dev Note", 
-"""In the future the key here will be better hidden, 
-but im putting it here to get a minimum viable product 
-(It will probably be on a shelf or something like that)""")
-
-Sign("Dev Sign 2", "Thats All Folks!", 
-"""Sorry But thats all there is so far, 
-I know its not much but its what I have!""")
+#Desk
+Desk("Your Desk", "Its your desk", items=[Item.get("Homework")])
 
 #Contaners
 
+
+# Need to come up with a good name
+Shelf("Misc Shelf", "You bought an extra shelf and it has been the home for a lot of random things", [Item.get("Garden Key")])
 
 ### ---  Rooms --- ###
 
@@ -691,16 +823,27 @@ Room("Lawn", "There is green grass all around you")
 Room("Front Porch", "you are not inside the building yet..")
 Room("Side of House", "The side of your house")
 Room("Garden", "Your garden, There are a bunch of plants growing here", items=[Item.get("House Key")])
-Room("Back of House", "The back of your house", objects=[Object.get("Backdoor"), Object.get("Dev Sign 1")], items=[Item.get("Garden Key")])
-Room("House Entrance", "The first room in your house", objects=[Object.get("Dev Sign 2")])
-
+Room("Back of House", "The back of your house", objects=[Object.get("Backdoor"), Object.get("Misc Shelf")])
+Room("House Entrance", "The first room in your house")
+Room("Living Room", "A comfortable living room with a couch and a large window")
+Room("Kitchen", "The kitchen is tidy, with counters along the walls and a small table")
+Room("Hallway", "A narrow hallway leads deeper into the house")
+Room("Bathroom", "A small bathroom with a mirror above the sink")
+Room("Bedroom", "Your bedroom, with a bed and a desk covered in homework", objects=[Object.get("Your Desk")])
 ## --- Connecting objects to eachother --- ##
 
-# Rooms
+# Outside Rooms
 Room.connect("Start", "North", "Lawn", "South")
 Room.connect("Lawn", "West", "Front Porch", "East")
 Room.connect("Front Porch", "South", "Side of House", "East")
 Room.connect("Side of House", "West", "Back of House", "East")
+
+# House interior (USED AI TO HELP MAKE LAYOUT)
+Room.connect("House Entrance", "West", "Living Room", "East")
+Room.connect("Living Room", "North", "Kitchen", "South")
+Room.connect("Living Room", "West", "Hallway", "East")
+Room.connect("Hallway", "North", "Bathroom", "South")
+Room.connect("Hallway", "West", "Bedroom", "East")
 
 
 
