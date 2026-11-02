@@ -829,6 +829,15 @@ class Oven(Object):
     def use(self, game):
         print("Its a oven, you dont want to turn it on if you have nothing to cook")
 
+class Carrot(Item):
+    def use(self, game):
+        print("You eat the Carrot")
+        game.items.remove(self)
+    
+class Painting(Object):
+    def use(self, game):
+        print("You stare at the painting for a bit")
+
 ## --- Time to start creating all of the objects --- ##
 
 # - Items - #
@@ -869,7 +878,15 @@ Desk("Your Desk", "Its your desk", items=[Item.get("Homework")])
 TV("TV", "Your TV")
 Couch("Couch", "Your Couch")
 Bed("Bed", "Your Bed")
-#Contaners
+
+Sink("Bathroom Sink", "Its the sink for the bathroom")
+Sink("Kitchen Sink", "Its the sink for the kitchen")
+Carrot("Carrot", "Its a carrot you grew yourself in the Garden")
+Oven("Oven", "Its your oven...")
+Toilet("Toilet", "Its a Toilet...")
+Toothbrush("Toothbrush", "A Green Electric Toothbrush")
+Painting("Painting", "A painting of a boat on a river at night in the moonlight")
+Painting("Art", "Some hand drawn art that you drew when you where little")
 
 
 # Need to come up with a good name
@@ -881,13 +898,13 @@ Room("Start", "The start of the game", objects=[Object.get("Introduction Sign")]
 Room("Lawn", "There is green grass all around you")
 Room("Front Porch", "you are not inside the building yet..")
 Room("Side of House", "The side of your house")
-Room("Garden", "Your garden, There are a bunch of plants growing here", items=[Item.get("House Key")])
+Room("Garden", "Your garden, There are a bunch of plants growing here", items=[Item.get("House Key"), Item.get("Carrot")])
 Room("Back of House", "The back of your house", objects=[Object.get("Backdoor"), Object.get("Misc Shelf")])
 Room("House Entrance", "The first room in your house")
 Room("Living Room", "A comfortable living room with a couch and a large window", objects=[Object.get("TV"), Object.get("Couch")])
-Room("Kitchen", "The kitchen is tidy, with counters along the walls and a small table")
-Room("Hallway", "A narrow hallway leads deeper into the house")
-Room("Bathroom", "A small bathroom with a mirror above the sink")
+Room("Kitchen", "The kitchen is tidy, with counters along the walls and a small table", objects=[Object.get("Kitchen Sink"), Object.get("Oven"), Object.get("Art")])
+Room("Hallway", "A narrow hallway leads deeper into the house", objects=[Object.get("Painting")])
+Room("Bathroom", "A small bathroom with a mirror above the sink", objects=[Object.get("Bathroom Sink"), Object.get("Toilet")], items=[Item.get("Toothbrush")])
 Room("Bedroom", "Your bedroom, with a bed and a desk covered in homework", objects=[Object.get("Your Desk"), Object.get("Bed")])
 ## --- Connecting objects to eachother --- ##
 
@@ -903,6 +920,7 @@ Room.connect("Living Room", "North", "Kitchen", "South")
 Room.connect("Living Room", "West", "Hallway", "East")
 Room.connect("Hallway", "North", "Bathroom", "South")
 Room.connect("Hallway", "West", "Bedroom", "East")
+
 
 
 
