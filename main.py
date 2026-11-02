@@ -7,13 +7,12 @@ from random import randint, choice
 if hexversion < 51315184: #Developed in python 3.15.1
     print(f"You are Running an earlier version of python than was used to develop this game, bugs may be present")
 
-DEBUG = True
+DEBUG = False # Enables Arbitrary Code Execution by user
 
 Direction = Literal["North", "East", "South", "West"] # I will probably add "Up" and "Down" later
-SearchItem = TypeVar("SearchItem", bound="Object | Item")
-
-def TODO(s): #when im done this should have no uses
-    print(f"TODO: {s}")
+                                                      # Guess what I didnt do..
+    
+SearchItem = TypeVar("SearchItem", bound="Object | Item") # AI Helped fix for the find_valid method type hinting
 
 class Game(Cmd):
     """
@@ -31,7 +30,7 @@ If this is your first time playing read the introduction sign by typing 'read si
 For help type `help`"""# Why do indented multi line strings have to be written like this?
     prompt = "> "
 
-    specific = "Sorry, you will have to be more specific."
+    specific = "Sorry, you will have to be more specific." # Message that shows when a user input has multiple substrings found
 
     def __init__(self, starting_room : Room, *args):
         self.current_room =  starting_room
@@ -40,8 +39,13 @@ For help type `help`"""# Why do indented multi line strings have to be written l
 
         self.items: list[Item] = []
     def find_valid(self, substring: str, search: Sequence[SearchItem]) -> list[SearchItem]:
+        """
+        Search for a substring in the list of relevent items or objects
+        """
         # I am very proud of this. Its a very elegant solution.
-        return [item for item in search if substring in item.name.lower()]
+
+        return [item for item in search if substring.lower().strip() in item.name.lower()]
+            # We will strip and lower again here to make sure we are catching everything
     
     def do_go(self, arg: str):
         """
@@ -49,7 +53,6 @@ For help type `help`"""# Why do indented multi line strings have to be written l
 
         Use: go [direction]
         """
-        direction = ""
         room = self.current_room
 
         low_arg = arg.lower()
@@ -57,7 +60,7 @@ For help type `help`"""# Why do indented multi line strings have to be written l
         direction_map: dict[str, Direction] = { "n": "North", "north": "North",
                                                 "e": "East", "east": "East", 
                                                 "s": "South", "south": "South",
-                                                "w": "West", "west": "West"}
+                                                "w": "West", "west": "West"} # get all variations of what a user might enter
 
         if low_arg not in direction_map.keys():
             print(f"Not a valid direction, got '{arg}'")
@@ -65,13 +68,13 @@ For help type `help`"""# Why do indented multi line strings have to be written l
         else:
             direction = direction_map[low_arg]
 
-        travel = room.exits[direction]
+        travel: Room = room.exits[direction]
         
         if travel is None:
             print(f"Sorry, you can't go {direction} here.")
             return
         self.current_room = travel
-        self.do_look()
+        self.do_look() # Automaticly show the room description 
         return False
             
         
@@ -84,7 +87,7 @@ For help type `help`"""# Why do indented multi line strings have to be written l
         """
         room = self.current_room
 
-        if arg == "" or arg == "Room" or arg == room.name:
+        if arg == "" or arg == "Room" or arg == room.name: #Show room description
 
 
             print(f"Location: {room.name}")
@@ -99,18 +102,19 @@ For help type `help`"""# Why do indented multi line strings have to be written l
                 
             print(f"Available Directions: {", ".join(exits)}")
 
-            if len(room.items) != 0:
-                items = [i.name for i in room.items]
+            if len(room.items) != 0: #if there are items:
+                items = [i.name for i in room.items] # get the name of each item
                 print(f"Items: {", ".join(items)}")
 
-            if len(room.objects) != 0:
-                objects = [i.name for i in room.objects]
+            if len(room.objects) != 0:# If there are objects:
+                objects = [i.name for i in room.objects]# Get the name of each object
                 print(f"Objects: {", ".join(objects)}")
 
             return False
         else:
 
-            inp = arg.strip().lower()
+            inp = arg.strip().lower() # make the input lowercase and strip all whitespace
+
             valid = self.find_valid(inp, self.items + self.current_room.objects)
 
             if len(valid) == 0:
@@ -129,7 +133,7 @@ For help type `help`"""# Why do indented multi line strings have to be written l
         """
         inp = arg.lower().strip()
 
-        # Auto use the correct key
+        # Auto use the correct key, since the player might have multiple keys in their inventory
         if inp == "key": 
 
             #Get all keys
@@ -141,13 +145,13 @@ For help type `help`"""# Why do indented multi line strings have to be written l
             
             doors = [door for door in self.current_room.objects if isinstance(door, Door)]
 
-            if len(doors) == 0:
+            if len(doors) == 0: # If there are no doors
                 print("There is no place to use a key here!")
                 return False
 
             for door in doors:
                 for key in keys:
-                    if key.descriptor == door.descriptor and door.locked:
+                    if key.descriptor == door.descriptor and door.locked: #Find the right key door combo
                         key.use(self, door)
                         self.items.remove(key)
                         return False
@@ -166,7 +170,7 @@ For help type `help`"""# Why do indented multi line strings have to be written l
         if len(valid) == 0:
             print(f"I dont know what a '{arg}' is.")
         elif len(valid) == 1:
-            valid[0].use(self)
+            valid[0].use(self) # all Objects and Items are requiered to havr a use method
         else:
             print(self.specific)
         return False
@@ -179,6 +183,7 @@ For help type `help`"""# Why do indented multi line strings have to be written l
         """
         inp = arg.strip().lower()
 
+        # First: sanity checks
         if inp == "":
             print("What do you want to grab?")
             return False
@@ -187,14 +192,15 @@ For help type `help`"""# Why do indented multi line strings have to be written l
             return False
             
         valid: list[Item] = self.find_valid(inp, self.current_room.items)
+        # We are only passing in Items so the result should only be items
 
-        if len(valid) == 0:
+        if len(valid) == 0: # If we could not find the user input in any of the item names:
             print(f"I Can't find a '{arg}' here.")
         elif len(valid) == 1:
             print(f"You Grabbed the {valid[0].name}!")
             self.items.append(valid[0])
             self.current_room.items.remove(valid[0])
-        else:
+        else: #if there is more than one item that matches
             print(self.specific)
         return False
 
@@ -206,19 +212,22 @@ For help type `help`"""# Why do indented multi line strings have to be written l
         """
         inp = arg.strip().lower()
 
-        if inp == "":
+        if inp == "": #name sanity check
             print("What do you want to read?")
             return False
         
         valid = self.find_valid(inp, self.current_room.objects + self.items)
 
+        if len(valid) == 0: # if we cant find anything that matches user input
+            print(f"Sorry I dont know what a {arg} is!")
+
         read = [x for x in valid if isinstance(x, Readable)]
 
-        if len(read) == 0:
+        if len(read) == 0: # we found something that matches however we cant read it.
             print("Sorry, I cant read that")
         elif len(read) == 1:
             read[0].read(self)
-        else:
+        else: # there is more than one thing we could read
             print(self.specific)
 
 
@@ -230,7 +239,7 @@ For help type `help`"""# Why do indented multi line strings have to be written l
 
         Dev Note: A save system has not been implemented yet
         """
-        return True
+        return True # The Cmd class uses returning true as the method of exiting
 
     def do_unlock(self, args):
         """
@@ -242,23 +251,25 @@ For help type `help`"""# Why do indented multi line strings have to be written l
         """
         
         inp = args.strip().lower()
-        if inp == "":
+        if inp == "": #Sanity Check
             print("Sorry, an argument is needed, Try 'unlock door'")
             return False
 
-        valid = self.find_valid(inp, self.current_room.objects)
+        valid: list[Object] = self.find_valid(inp, self.current_room.objects)
+            # We are only passing in objects so...
 
         if len(valid) == 0:
             print(f"Sorry, I don't know what you mean by '{args}'")
             return False
         
-        doors = [i for i in self.find_valid(inp, self.current_room.objects) if isinstance(i, Door)]
+        doors = [i for i in valid if isinstance(i, Door)]
 
-        if len(doors) == 0:
+        if len(doors) == 0: # Well its not a Door...
             print("Sorry I can't open that.")
             return False
 
-        valid_keys = [i for i in self.items if isinstance(i, Key) and i.descriptor == doors[0].descriptor]
+        valid_keys = [i for i in self.items if isinstance(i, Key) and i.descriptor == doors[0].descriptor] 
+        # we already have the door so we can use list comprehenshion (or however you spell that)
 
         if len(valid_keys) == 0:
             print(f"Sorry, You dont have the key to unlock the {doors[0].name}.")
@@ -275,14 +286,18 @@ For help type `help`"""# Why do indented multi line strings have to be written l
             but I was advised to add this so...
         """
         inp = arg.strip().lower()
+
         valid = self.find_valid(inp, self.items)
-        if len(valid) == 0:
+
+        if len(valid) == 0: # No duplication glitch here!
             print(f"You don't have a '{arg}'.")
+
         elif len(valid) == 1:
             print(f"You dropped the {valid[0].name}")
             self.items.remove(valid[0])
             self.current_room.items.append(valid[0])
-        else:
+
+        else: # there is more than one that matched
             print(self.specific)
     
     def do_inventory(self, arg):
@@ -290,12 +305,13 @@ For help type `help`"""# Why do indented multi line strings have to be written l
         Views your current inventory
         """
         if len(self.items) > 0:
+            # I know this is very ugly, but i dont want to fix it.
             print(f"Items: {", ".join([i.name for i in self.items])}")
         else:
-            print("You have no Items!")
+            print("You have no Items!") # We will get Weird errors if we dont have this
 
     if DEBUG:
-        def do_shell(self, arg):
+        def do_shell(self, arg): #THIS IS ACE! DEBUG flag is diabled on ship/build but BEWARE!
             """
             For debugging use, executes command as python code
 
@@ -329,24 +345,26 @@ For help type `help`"""# Why do indented multi line strings have to be written l
 
         if len(valid) == 0:
             print(f"Sorry, I dont know what a '{arg}' is")
+
         elif len(valid) > 1:
             print(self.specific)
+
         elif isinstance(valid[0], Door):
             if isinstance(valid[0], Broken_Door):
                 print("The door is broken!")
                 return False
             self.do_unlock(valid[0].name)
+
         elif isinstance(valid[0], Container):
             self.current_room.items += valid[0].items
             for item in valid[0].items:
                 print(f"You found a {item.name}")
 
-            valid[0].items = []
+            valid[0].items = [] # remove the items from the contanier
             
             pass
         return False
         
-        # Needs to open both Door and objects that hold items 
 
     ### --- Single Letter Alias --- ###
     def do_i(self, arg):
@@ -382,11 +400,13 @@ For help type `help`"""# Why do indented multi line strings have to be written l
 
     def do_help(self, arg):
         """
-        gets help
+        Gets help
         """
         if arg.strip() == "":
 
+            # I dont know where to even begin describing this... google is your friend here (but not the AI)
             fun = [ i.lstrip("do").lstrip("_") for i in self.__class__.__dict__.keys() if i.startswith("do_")]
+
             print("Commands:")
             print(", ".join(fun))
         else: 
@@ -949,9 +969,6 @@ Room.connect("Living Room", "North", "Kitchen", "South")
 Room.connect("Living Room", "West", "Hallway", "East")
 Room.connect("Hallway", "North", "Bathroom", "South")
 Room.connect("Hallway", "West", "Bedroom", "East")
-
-
-
 
 # Doors
 Door.get("House Door").connect("Front Porch", "West", "House Entrance", "East")
