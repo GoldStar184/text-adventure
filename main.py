@@ -35,7 +35,7 @@ For help type `help`"""# Why do indented multi line strings have to be written l
 
     def __init__(self, starting_room : Room, *args):
         self.current_room =  starting_room
-        self.flags: dict[str, bool] = {"homework": False} # Need to check if HW is done, but will write to be extendable
+        self.flags: dict[str, bool] = {"homework": False, "teeth": False} # Need to check if HW is done, but will write to be extendable
         super().__init__(*args)
 
         self.items: list[Item] = []
@@ -803,6 +803,8 @@ class Bed(Object):
         if not game.flags["homework"]:
             print("you should get your homework done before you go to bed!")
             return
+        elif not game.flags["teeth"]:
+            print("You should brush your teeth before going to bed!")
         else:
             print("You go to bed having done your Homework and gotten inside")
             print("This is the end of the story, Thanks for playing!")
@@ -827,11 +829,15 @@ class TV(Object):
 
 class Toothbrush(Item):
     def use(self, game):
+        if game.flags["teeth"]:
+            print("You have already brushed your teeth")
+            return
         if game.current_room is Room.get("Bathroom"):
             print("You brush your teeth")
+            game.flags["teeth"] = True
         else:
             print("You should be in the Bathroom to brush your teeth!")
-        return super().use(game)
+        return 
 
 class Sink(Object):
     """
