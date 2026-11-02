@@ -373,7 +373,30 @@ For help type `help`"""# Why do indented multi line strings have to be written l
         return self.do_go("West")
 
     
+
+
+
+
     
+
+
+    def do_help(self, arg):
+        """
+        gets help
+        """
+        if arg.strip() == "":
+
+            fun = [ i.lstrip("do").lstrip("_") for i in self.__class__.__dict__.keys() if i.startswith("do_")]
+            print("Commands:")
+            print(", ".join(fun))
+        else: 
+            if "do_" + arg.strip() in self.__class__.__dict__.keys():
+                print(self.__class__.__dict__["do_" + arg.strip()].__doc__)
+            else:
+                print(f"Unkown Command {arg}")
+
+
+
 
     def emptyline(self):
         """
@@ -698,7 +721,7 @@ class Desk(Container):
     def read(self, game):
         return super().read(game)
 
-class Homework(Item):
+class Math_Homework(Item):
     def random_problem(self) -> tuple[int, int, str, int]:
         number_1 = randint(30, 80)
         number_2 = randint(1, number_1)
@@ -847,7 +870,7 @@ Key("House Key", "The Key to your House.", "House")
 Key("Garden Key", "The Key to your Garden", "Garden")
 
 #Homework
-Homework("Homework", "Math Homework, You Really Should Get this done")
+Math_Homework("Math Homework", "Math Homework, You Really Should Get this done")
 
 # - Objects - #
 
@@ -872,7 +895,7 @@ valid movement directions
 Try it Now!""")
 
 #Desk
-Desk("Your Desk", "Its your desk", items=[Item.get("Homework")])
+Desk("Your Desk", "Its your desk", items=[Item.get("Math Homework")])
 
 #Filler
 TV("TV", "Your TV")
@@ -932,23 +955,3 @@ Door.get("Garden Gate").connect("Front Porch", "North", "Garden", "South")
 if __name__ == "__main__":
     game = Game(Room.get("Start"))
     game.cmdloop()
-
-"""
-Game Plans:
-
-Idea: You need to complete your HW and get to bed
-
-Week 1 (Outside)
-The Player Starts outside and needs to find a key to get inside
-
-House Key is in the garden but the garden key is in the backyard(?)
-
-Need to add:
-- Objects with item inventory
-- Better README (kinda?)
-- Sign with sign clipart
-- Door Unlock method supporting Door Instances as arguments
-- Clothing Slots and Items
-- Combat?
-    - Would need to come up with a system
-"""
